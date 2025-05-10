@@ -51,6 +51,8 @@ class imagereaderapp:
         self.start_frame = None
         self.end_frame = None
 
+        self.path = None
+        self.img_dir = None
 
         self.trackpoint_id = None
         self.trackpoint_coords = None
@@ -163,6 +165,7 @@ class imagereaderapp:
             self.status_label1.config(text=binary_path)
             #read all the .bin files in the path
             self.file_list = sorted(glob.glob(os.path.join(self.file_path, "*.bin")))
+            #print(self.file_list)
             #Define the frame size
             self.width = 382
             self.height = 288
@@ -172,7 +175,9 @@ class imagereaderapp:
 
             #create empty array to store the temperature data
             self.allfield_temp = np.zeros((self.height, self.width, self.total_frames))
-            
+        
+            self.folder_name = os.path.basename(binary_path)
+            self.path =  'image' + '\\' + self.folder_name
         elif not binary_path:
             print("No folder selected")
         elif not os.path.exists(binary_path):
@@ -213,8 +218,17 @@ class imagereaderapp:
                 min_temp = np.min(self.allfield_temp)
                 print(f"Temperature range: {min_temp} to {max_temp}")
                 
+                # Create the output directory if it doesn't exist
+                if not os.path.exists(self.path+'\\'+'Preview'):
+                    os.makedirs(self.path+'\\'+'Preview')
+                elif os.path.exists(self.path+'\\'+'Preview'):
+                    #remove all the files in the folder
+                    files = glob.glob(self.path +'\\'+'Preview' + '\\*')
+                    for f in files:
+                        os.remove(f)
+
                 # Save the data (corrected the variable name)
-                np.save('Temperature_data', self.allfield_temp)
+                np.save(self.path +'\\'+'Temperature_ROI', self.allfield_temp)
                 self.status_label1.config(text=f"Conversion complete. Frames: {self.total_frames}")
                 
             except MemoryError:
@@ -230,22 +244,17 @@ class imagereaderapp:
 
     #opencv is faster than matplotlib to save the image
     def Generate_Preview(self):
-        if os.path.exists('Temperature_data.npy'):
+        if os.path.exists(self.path +'\\'+'Temperature_ROI.npy'):
             print('The temperature data detected! Begin to generate the preview.')
 
-            if not os.path.exists('image'):
-                os.makedirs('image')
-            else:
-                files = glob.glob('image\\*')
-                for f in files:
-                    os.remove(f)
-
             self.progress2['maximum'] = self.total_frames
-            self.Temp_list = np.load('Temperature_data.npy')
+            self.Temp_list = np.load(self.path + '\\'+'Temperature_ROI.npy')
             max_temp = np.max(self.Temp_list[:,:,0])
             min_temp = np.min(self.Temp_list[:,:,0])
             print('The maximum temperature is:', max_temp)
             print('The minimum temperature is:', min_temp)
+
+            path  = self.path + '\\' + 'Preview'
 
             for i in range(self.total_frames):
                 self.progress2['value'] = i
@@ -259,8 +268,11 @@ class imagereaderapp:
                 # Apply colormap (JET)
                 color_frame = cv2.applyColorMap(norm_frame, cv2.COLORMAP_JET)
 
-                name = f'image\\{i}.png'
+                name = f'{path}\\{i}.png'
                 cv2.imwrite(name, color_frame)
+
+            
+            self.status_label1.config(text='Preview images generation complete!')
 
         else:
             print('Convert DL to temperature first!')
@@ -305,12 +317,106 @@ class imagereaderapp:
 
         return
     '''
-
     def refresh(self):
-        self.img_dir = 'image\\'
+        # Reset previous UI elements
+        for widget in self.root.winfo_children():
+            if isinstance(widget, tk.Canvas) or isinstance(widget, tk.Scale) or isinstance(widget, tk.Button) or isinstance(widget, tk.Label) or isinstance(widget, ttk.Entry):
+                widget.destroy()
+
+        self.img_dir = self.path + '\\Preview'+'\\'
+        
+        # Check if temperature data and preview images exist
+        if os.path.exists(self.path + '\\'+'Temperature_ROI.npy') and os.listdir(self.img_dir):
+            try:
+                self.Temp_list = np.load(self.path + '\\'+'Temperature_ROI.npy')
+                self.image_files = sorted(glob.glob(os.path.join(self.img_dir,'*.png')), key=os.path.getmtime)
+                
+                # Create a new canvas with a fixed reference to prevent garbage collection
+                self.canvas = tk.Canvas(self.root, width=382, height=288)
+                self.total_frames = len(self.image_files)
+                
+                # Recreate the slider
+                self.slider = tk.Scale(self.root, from_=0, to=len(self.image_files)-1, 
+                                    length=600, tickinterval=500, 
+                                    orient="horizontal", command=self.update_image)
+                
+                # Recreate other UI elements
+                self.ROI_button = tk.Button(self.root, text="Select Coord", command=self.apply_coordinates)
+                self.reset_button = tk.Button(self.root, text="Reset All", command=self.reset_All)
+                
+                self.ROI_dialog_x = tk.Label(self.root, text="X:")
+                self.ROI_text_x = ttk.Entry(self.root, textvariable=self.ROI_coords_x, width=3)
+                self.ROI_dialog_y = tk.Label(self.root, text="Y:")
+                self.ROI_text_y = ttk.Entry(self.root, textvariable=self.ROI_coords_y, width=3)
+                
+                self.ROI_size_dialog_x = tk.Label(self.root, text="Width:")
+                self.ROI_size_text_x = ttk.Entry(self.root, textvariable=self.ROI_width, width=3)
+                self.ROI_size_dialog_y = tk.Label(self.root, text="Height:")
+                self.ROI_size_text_y = ttk.Entry(self.root, textvariable=self.ROI_height, width=3)
+                
+                self.ROI_size_select = tk.Button(self.root, text="Select Size", command=self.select_size)
+                
+                self.start_frame = tk.Button(self.root, text="Select as Start", command=self.mark_start)
+                self.end_frame = tk.Button(self.root, text="Select as End", command=self.mark_end)
+                
+                self.temperature_ROI = tk.Button(self.root, text="ROI Temperature", command=self.read_temp)
+                self.temperature_hor = tk.Button(self.root, text="Horizontal Temperature", command=self.read_temp_hon)
+                self.temperature_ver = tk.Button(self.root, text="Vertical Temperature", command=self.read_temp_ver)
+                
+                self.show_ver = tk.Button(self.root, text="Show", command=self.show_ver_temp)
+                self.show_hor = tk.Button(self.root, text="Show", command=self.show_hor_temp)
+                
+                # Create the first image
+                self.current_frame = None
+                
+                # Layout
+                self.canvas.grid(row=5, column=0, rowspan=20, columnspan=6)
+                self.slider.grid(row=25, column=0, rowspan=1, columnspan=6)
+                
+                self.ROI_button.grid(row=8, column=7, sticky="w")
+                self.reset_button.grid(row=10, column=7, sticky="w")
+                
+                self.ROI_dialog_x.grid(row=7, column=5, rowspan=1)
+                self.ROI_text_x.grid(row=8, column=5, rowspan=1)
+                
+                self.ROI_dialog_y.grid(row=7, column=6, rowspan=1)
+                self.ROI_text_y.grid(row=8, column=6, rowspan=1)
+                
+                self.ROI_size_dialog_x.grid(row=5, column=5, rowspan=1)
+                self.ROI_size_text_x.grid(row=6, column=5, rowspan=1)
+                
+                self.ROI_size_dialog_y.grid(row=5, column=6, rowspan=1)
+                self.ROI_size_text_y.grid(row=6, column=6, rowspan=1)
+                
+                self.ROI_size_select.grid(row=6, column=7)
+                
+                self.start_frame.grid(row=11, column=5, sticky="w")
+                self.end_frame.grid(row=11, column=7, sticky="w")
+                
+                self.temperature_ROI.grid(row=12, column=5, sticky="w")
+                
+                self.temperature_ver.grid(row=13, column=5, sticky="w")
+                self.temperature_hor.grid(row=14, column=5, sticky="w")
+                self.show_ver.grid(row=13, column=7, sticky="w")
+                self.show_hor.grid(row=14, column=7, sticky="w")
+                
+                # Bind canvas click event
+                self.canvas.bind("<Button-1>", self.on_canvas_click)
+                
+                # Update image to the first frame
+                self.update_image(0)
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to refresh: {str(e)}")
+        else:
+            messagebox.showinfo("Info", "No temperature data or preview images available. Please convert DL data and generate preview first.")
+    
+    '''
+    def refresh(self):
+        self.img_dir = self.path + '\\Preview'+'\\'
         #check if the temperature data npy file is exist, and the image folder is not empty
-        if os.path.exists('Temperature_data.npy') and os.listdir(self.img_dir):
-            self.Temp_list = np.load('Temperature_data.npy')
+        if os.path.exists(self.path + '\\'+'Temperature_ROI.npy') and os.listdir(self.img_dir):
+            self.Temp_list = np.load(self.path + '\\'+'Temperature_ROI.npy')
             self.image_files = sorted(glob.glob(os.path.join(self.img_dir,'*.png')), key=os.path.getmtime)
             self.canvas = tk.Canvas(self.root, width=382, height=288)
             self.total_frames = len(self.image_files)
@@ -401,7 +507,7 @@ class imagereaderapp:
         elif not os.listdir(self.img_dir):
             self.status_label1.config(text="No image data, please generate the preview first!")
 
-
+    '''
     def update_image(self, value):
         index = int(value)
         image = Image.open(self.image_files[index])
@@ -441,6 +547,7 @@ class imagereaderapp:
                 self.canvas_hor.create_text(160, 120, text=f"No horizontal data for frame {index}")
         else:
             pass
+            
 
     def on_canvas_click(self, event):
         #set the trackpoint
@@ -549,7 +656,7 @@ class imagereaderapp:
                     print(f"Average temperature: {avg_temp}")
 
                     #save the temperature data as txt file
-                    np.savetxt('Temperature_data.txt', avg_temp)
+                    np.savetxt(self.path +'\\'+'Temperature_data.txt', avg_temp)
 
                     #plot the temperature data and save as png file
                     plt.figure()
@@ -560,7 +667,7 @@ class imagereaderapp:
                     #if the folder is not exist, create a new folder
                     if not os.path.exists('ROI'):
                         os.makedirs('ROI')
-                    plt.savefig('ROI\\Temperature_ROI.png')
+                    plt.savefig(self.path +'\\'+'Temperature_ROI.png')
                     plt.close()
 
                     #pump up a new window to show the temperature fig
@@ -661,11 +768,17 @@ class imagereaderapp:
                     min_temp = np.min(temp_vertical_avg)
                     #save the temperature data of every frame as png image, x axis is the vertical coordinate, y axis is the temperature
                     #check if the folder is not exist
-                    if not os.path.exists('Vertical_temp'):
-                        os.makedirs('Vertical_temp')
+                    if not os.path.exists(self.path + '\\' +'Vertical_temp'):
+                        os.makedirs(self.path + '\\' +'Vertical_temp')
+                    #check if the folder is exist, clear the folder and save new image in the folder
+                    elif os.path.exists(self.path + '\\' +'Vertical_temp'):
+                        #remove all the files in the folder
+                        files = glob.glob(self.path + '\\' +'Vertical_temp\\*')
+                        for f in files:
+                            os.remove(f)
                     # Create a single figure and axis
                     fig, ax = plt.subplots(figsize=(10,8),dpi=300)
-                
+                    path = self.path + '\\' +'Vertical_temp'
                     for i in tqdm(range(self.start_frame, self.end_frame)):
                         ax.clear()  # Clear previous plot
                         ax.plot(temp_vertical_avg[:,i])
@@ -673,10 +786,12 @@ class imagereaderapp:
                         ax.set_xlabel('Vertical Coordinate')
                         ax.set_ylabel('Temperature (C)')
                         ax.set_ylim(min_temp, max_temp)
-                        fig.savefig(f'Vertical_temp\\{i}.png',)
+                        fig.savefig(f'{path}\\{i}.png',)
                     
                     plt.close(fig)  # Close only once at the end
 
+                    #save the all temperature data as npy file
+                    np.save(self.path + '\\' +'Vertical_temp.npy', temp_vertical_avg)
 
                 #TODO
                 else:
@@ -702,11 +817,17 @@ class imagereaderapp:
                     min_temp = np.min(temp_horizontal_avg)
                     #save the temperature data of every frame as png image, x axis is the vertical coordinate, y axis is the temperature
                     #check if the folder is not exist
-                    if not os.path.exists('Horizontal_temp'):
-                        os.makedirs('Horizontal_temp')
+                    if not os.path.exists(self.path + '\\' + 'Horizontal_temp'):
+                        os.makedirs(self.path + '\\' + 'Horizontal_temp')
+                    #check if the folder is exist, clear the folder and save new image in the folder
+                    elif os.path.exists(self.path + '\\' +'Horizontal_temp'):
+                        #remove all the files in the folder
+                        files = glob.glob(self.path + '\\' +'Horizontal_temp\\*')
+                        for f in files:
+                            os.remove(f)
                     # Create a single figure and axis
                     fig, ax = plt.subplots(figsize=(10,8),dpi=300)
-                    
+                    path = self.path + '\\' +'Horizontal_temp'
                     for i in tqdm(range(self.start_frame, self.end_frame)):
                         ax.clear()
                         ax.plot(temp_horizontal_avg[:,i])
@@ -715,8 +836,11 @@ class imagereaderapp:
                         ax.set_ylabel('Temperature (C)')
                         ax.set_ylim(min_temp, max_temp)
                 
-                        fig.savefig(f'Horizontal_temp\\{i}.png')
+                        fig.savefig(f'{path}\\{i}.png')
                     plt.close(fig)
+
+                    #save the all temperature data as npy file
+                    np.save(self.path + '\\' +'Horizontal_temp.npy', temp_horizontal_avg)
                 else:
                     tk.messagebox.showerror("Invalid Input","Please enter the width and height of the ROI")
             else:
