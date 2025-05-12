@@ -45,8 +45,12 @@ class imagereaderapp:
         self.show_hor_enabled = False
 
         self.ROI = None
+        #self.ROI_coord_x = tk.StringVar()
+        #self.ROI_coord_y = tk.StringVar()
         self.ROI_coords_x = tk.StringVar()
         self.ROI_coords_y = tk.StringVar()
+        self.x_select = None
+        self.y_select = None
 
         self.start_frame = None
         self.end_frame = None
@@ -439,6 +443,7 @@ class imagereaderapp:
         self.show_marker(x, y)
     
     def apply_coordinates(self):
+
         if self.ROI_size_text_x.get() == "" or self.ROI_size_text_y.get() == "":
             tk.messagebox.showerror("Invalid Input", "Please enter width and height first")
         else:
@@ -451,6 +456,8 @@ class imagereaderapp:
                 self.show_marker(x, y)
                 self.ROI_coords_x.set(x)
                 self.ROI_coords_y.set(y)
+                self.x_select = x
+                self.y_select = y
             except ValueError:
                 # Handle invalid input
                 tk.messagebox.showerror("Invalid Input", "Please enter valid integer coordinates")
@@ -489,6 +496,8 @@ class imagereaderapp:
         self.ROI_coords_y =  tk.StringVar()
         self.ROI_width = tk.StringVar()
         self.ROI_height = tk.StringVar()
+        self.x_select = None
+        self.y_select = None
         # Remove marker
         if self.current_marker:
             self.canvas.delete(self.current_marker)
@@ -521,10 +530,10 @@ class imagereaderapp:
 
     def read_temp(self):
         if self.start_frame is not None and self.end_frame is not None:
-            if self.ROI_coords_x.get() != "" and self.ROI_coords_y.get() != "":
+            if self.x_select != "" and self.y_select != "":
                 if self.ROI_width.get() != "" and self.ROI_height.get() != "":
                     #calculate the average temperature of the ROI area for each frame
-                    x,y = int(self.ROI_coords_x.get()), int(self.ROI_coords_y.get())
+                    x,y = int(self.x_select), int(self.y_select)
                     #define the ROI area
                     height = int(self.ROI_height.get())
                     width = int(self.ROI_width.get())
@@ -576,12 +585,12 @@ class imagereaderapp:
 
     def read_temp_ver(self):
         if self.start_frame is not None and self.end_frame is not None:
-            if self.ROI_coords_x.get() != "" and self.ROI_coords_y.get() != "":
+            if self.x_select != "" and self.y_select != "":
                 if self.ROI_width.get() != "" and self.ROI_height.get() != "":
                     Y_axis = np.arange(0, self.height, 1)
 
                     #calculate the average temperature of the ROI area for each frame
-                    x = int(self.ROI_coords_x.get())
+                    x = int(self.x_select)
                     width = int(self.ROI_width.get())
                     #read all the vertical temperature data of all the frames
                     temp_vertical = self.Temp_list[:, x-width:x +width, self.start_frame:self.end_frame]
@@ -633,12 +642,12 @@ class imagereaderapp:
 
     def read_temp_hon(self):
         if self.start_frame is not None and self.end_frame is not None:
-            if self.ROI_coords_x.get() != "" and self.ROI_coords_y.get() != "":
+            if self.x_select != "" and self.y_select != "":
                 if self.ROI_width.get() != "" and self.ROI_height.get() != "":
                     #create X axis, pixel number is the self.width of the image 
                     X_axis = np.arange(0, self.width, 1)
                     #calculate the average temperature of the ROI area for each frame
-                    y = int(self.ROI_coords_y.get())
+                    y = int(self.y_select)
                     height = int(self.ROI_height.get())
                     #read all the horizontal temperature data of all the frames
                     temp_horizontal = self.Temp_list[y-height:y+height, :, self.start_frame:self.end_frame]
