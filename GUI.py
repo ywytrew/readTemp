@@ -461,6 +461,9 @@ class imagereaderapp:
             except ValueError:
                 # Handle invalid input
                 tk.messagebox.showerror("Invalid Input", "Please enter valid integer coordinates")
+            
+            #print(f"Selected coordinates: ({x}, {y})")
+            print(f"Selected coordinates: ({self.x_select}, {self.y_select})")
     
     def show_marker(self, x, y):
         # Remove previous marker if it exists
@@ -492,16 +495,21 @@ class imagereaderapp:
         
     def reset_All(self):
         # Clear entry fields
-        self.ROI_coords_x =  tk.StringVar()
-        self.ROI_coords_y =  tk.StringVar()
-        self.ROI_width = tk.StringVar()
-        self.ROI_height = tk.StringVar()
+        self.ROI_coords_x.set("")
+        self.ROI_coords_y.set("")
+        self.ROI_width.set("")
+        self.ROI_height.set("")
+        #self.x_select = None
+        #self.y_select = None
+        # Remove marker
         self.x_select = None
         self.y_select = None
-        # Remove marker
+        self.start_frame = None
+        self.end_frame = None
         if self.current_marker:
             self.canvas.delete(self.current_marker)
-            self.canvas.delete(self.current_line)
+            self.canvas.delete(self.current_line1)
+            self.canvas.delete(self.current_line2)
             self.canvas.delete("coordinate_text")
             self.current_marker = None
     
@@ -530,7 +538,7 @@ class imagereaderapp:
 
     def read_temp(self):
         if self.start_frame is not None and self.end_frame is not None:
-            if self.x_select != "" and self.y_select != "":
+            if self.x_select is not None and self.y_select is not None:
                 if self.ROI_width.get() != "" and self.ROI_height.get() != "":
                     #calculate the average temperature of the ROI area for each frame
                     x,y = int(self.x_select), int(self.y_select)
@@ -579,7 +587,7 @@ class imagereaderapp:
                 else:
                     tk.messagebox.showerror("Invalid Input","Please enter the width and height of the ROI")
             else:
-                tk.messagebox.showerror("Invalid Input","Please enter the coordinates of the ROI")
+                tk.messagebox.showerror("Invalid Input","Please enter the coordinates of the ROI and click select coord")
         else:
             tk.messagebox.showerror("Invalid Input","Please select the start and end frame")
 
