@@ -181,7 +181,8 @@ class imagereaderapp:
             self.allfield_temp = np.zeros((self.height, self.width, self.total_frames))
         
             self.folder_name = os.path.basename(binary_path)
-            self.path =  'image' + '\\' + self.folder_name
+            #self.path =  'image' + '\\' + self.folder_name
+            self.path = os.path.join("image",self.folder_name)
         elif not binary_path:
             print("No folder selected")
         elif not os.path.exists(binary_path):
@@ -221,18 +222,19 @@ class imagereaderapp:
                 max_temp = np.max(self.allfield_temp)
                 min_temp = np.min(self.allfield_temp)
                 print(f"Temperature range: {min_temp} to {max_temp}")
-                
+                preview_path = os.path.join(self.path, 'Preview')
                 # Create the output directory if it doesn't exist
-                if not os.path.exists(self.path+'\\'+'Preview'):
-                    os.makedirs(self.path+'\\'+'Preview')
-                elif os.path.exists(self.path+'\\'+'Preview'):
+                if not os.path.exists(preview_path):
+                    os.makedirs(preview_path)
+                elif os.path.exists(preview_path):
                     #remove all the files in the folder
-                    files = glob.glob(self.path +'\\'+'Preview' + '\\*')
+                    files = glob.glob(preview_path)
                     for f in files:
                         os.remove(f)
 
-                # Save the data (corrected the variable name)
-                np.save(self.path +'\\'+'Temperature_ROI', self.allfield_temp)
+                # Save the data (corrected the variable name)]
+                save_path = os.path.join(self.path, 'Temperature_ROI')
+                np.save(save_path, self.allfield_temp)
                 self.status_label1.config(text=f"Conversion complete. Frames: {self.total_frames}")
                 
             except MemoryError:
@@ -248,17 +250,18 @@ class imagereaderapp:
 
     #opencv is faster than matplotlib to save the image
     def Generate_Preview(self):
-        if os.path.exists(self.path +'\\'+'Temperature_ROI.npy'):
+        path_temp = os.path.join(self.path, 'Temperature_ROI.npy')
+        if os.path.exists(path_temp):
             print('The temperature data detected! Begin to generate the preview.')
 
             self.progress2['maximum'] = self.total_frames
-            self.Temp_list = np.load(self.path + '\\'+'Temperature_ROI.npy')
+            self.Temp_list = np.load(path_temp)
             max_temp = np.max(self.Temp_list[:,:,0])
             min_temp = np.min(self.Temp_list[:,:,0])
             print('The maximum temperature is:', max_temp)
             print('The minimum temperature is:', min_temp)
 
-            path  = self.path + '\\' + 'Preview'
+            path  = os.path.join(self.path, 'Preview') 
 
             for i in range(self.total_frames):
                 self.progress2['value'] = i
@@ -272,7 +275,7 @@ class imagereaderapp:
                 # Apply colormap (JET)
                 color_frame = cv2.applyColorMap(norm_frame, cv2.COLORMAP_JET)
 
-                name = f'{path}\\{i}.png'
+                name = os.path.join(path, f"{i}.png")
                 cv2.imwrite(name, color_frame)
 
             
@@ -287,8 +290,9 @@ class imagereaderapp:
             if isinstance(widget, tk.Canvas) or isinstance(widget, tk.Scale) or isinstance(widget, tk.Button) or isinstance(widget, tk.Label) or isinstance(widget, ttk.Entry):
                 widget.destroy()
 
-        self.img_dir = self.path + '\\Preview'+'\\'
-        
+        #self.img_dir = self.path + '\\Preview'+'\\'
+        self.img_dir = os.path.join(self.path, 'Preview')
+    
         # Check if temperature data and preview images exist
         if os.path.exists(self.path + '\\'+'Temperature_ROI.npy') and os.listdir(self.img_dir):
             try:
