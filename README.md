@@ -2,6 +2,7 @@
 A GUI to read bin files recorded by the Optirs series cameras.
 More info can be found in the manual
 2025/04/28
+
 V0.1.0
 =======
 1. save the horizontal and vertical temperature(Done)
@@ -9,14 +10,17 @@ V0.1.0
 3. Pack all the imamges aand temp files in one folder (Done)
 4. Addd the notifaciton of finishing Grenerating preview (Done)
 5. Now can switch to new folder without restarting the program (Done)
+
 =======
 V0.1.1
 1. vertical and horizontal temperature can be saved now
 2. Use new window to display the vertical and horizontal temperature
 3. Add the toolbar to the window
+
 =======
 V0.1.2
 1. FIx the path issue on MacOS
+
 =======
 v0.1.5
 1. add a new funciton of specify the lower and upper bound of the image
