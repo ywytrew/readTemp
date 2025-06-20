@@ -14,3 +14,9 @@ V0.1.1
 1. vertical and horizontal temperature can be saved now
 2. Use new window to display the vertical and horizontal temperature
 3. Add the toolbar to the window
+=======
+V0.1.2
+1. FIx the path issue on MacOS
+=======
+v0.1.5
+1. add a new funciton of specify the lower and upper bound of the image
