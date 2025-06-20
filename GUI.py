@@ -74,7 +74,8 @@ class imagereaderapp:
         # Define the size of ROI
         self.ROI_height = tk.StringVar()
         self.ROI_width = tk.StringVar()
-
+        self.max_temp_value = tk.DoubleVar()
+        self.min_temp_value = tk.DoubleVar()
         # Setup the Notebook
         self.notebook = ttk.Notebook(root)
         self.notebook.grid(row=0, column=0, sticky="nsew")  # Make the notebook expand in all directions
@@ -252,15 +253,20 @@ class imagereaderapp:
     def Generate_Preview(self):
         path_temp = os.path.join(self.path, 'Temperature_ROI.npy')
         if os.path.exists(path_temp):
-            print('The temperature data detected! Begin to generate the preview.')
-
             self.progress2['maximum'] = self.total_frames
             self.Temp_list = np.load(path_temp)
+
             max_temp = np.max(self.Temp_list[:,:,0])
             min_temp = np.min(self.Temp_list[:,:,0])
-            print('The maximum temperature is:', max_temp)
-            print('The minimum temperature is:', min_temp)
 
+            print('No input, use default max tempearture:', max_temp)
+            print('No input, use default min temperature', min_temp)
+            if self.max_temp_value.get() != 0 and self.min_temp_value.get() != 0:
+                max_temp = self.max_temp_value.get()
+                min_temp = self.min_temp_value.get()
+                print('Use input max temperature:', max_temp)
+                print('Use input min temperature:', min_temp)
+            
             path  = os.path.join(self.path, 'Preview') 
 
             for i in range(self.total_frames):
@@ -324,6 +330,12 @@ class imagereaderapp:
                 self.ROI_size_dialog_y = tk.Label(self.root, text="Height:")
                 self.ROI_size_text_y = ttk.Entry(self.root, textvariable=self.ROI_height, width=3)
                 
+                self.max_temp_digit = tk.Label(self.root, text="Max Temp:")
+                self.max_temp = ttk.Entry(self.root, textvariable=self.max_temp_value,width=3)
+                self.min_temp_digit = tk.Label(self.root, text="Min Temp:")
+                self.min_temp = ttk.Entry(self.root, textvariable=self.min_temp_value,width=3)
+                self.regen = tk.Button(self.root, text="Regen", command=self.Generate_Preview)
+
                 self.ROI_size_select = tk.Button(self.root, text="Select Size", command=self.select_size)
                 
                 self.start_frame = tk.Button(self.root, text="Select as Start", command=self.mark_start)
@@ -346,6 +358,12 @@ class imagereaderapp:
                 self.ROI_button.grid(row=8, column=7, sticky="w")
                 self.reset_button.grid(row=10, column=7, sticky="w")
                 
+                self.max_temp_digit.grid(row=3, column=5,rowspan=1)
+                self.max_temp.grid(row=4, column=5, rowspan=1)
+                self.min_temp_digit.grid(row=3, column=6, rowspan=1)
+                self.min_temp.grid(row=4, column=6, rowspan=1)
+                self.regen.grid(row=4, column=7, sticky="w")
+
                 self.ROI_dialog_x.grid(row=7, column=5, rowspan=1)
                 self.ROI_text_x.grid(row=8, column=5, rowspan=1)
                 
@@ -438,8 +456,12 @@ class imagereaderapp:
                                         font=("Arial", 12))
         else:
             pass
-            
+    
+    def regenerate_preview(self):
 
+
+        return
+    
     def on_canvas_click(self, event):
         #set the trackpoint
         if self.trackpoint_id is not None:
@@ -507,6 +529,8 @@ class imagereaderapp:
         self.ROI_coords_y.set("")
         self.ROI_width.set("")
         self.ROI_height.set("")
+        self.max_temp_value.set(0.0)
+        self.min_temp_value.set(0.0)
         #self.x_select = None
         #self.y_select = None
         # Remove marker
