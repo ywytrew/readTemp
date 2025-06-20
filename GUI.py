@@ -126,10 +126,12 @@ class imagereaderapp:
         self.ROI = None
         self.ROI_coords_x.set("")
         self.ROI_coords_y.set("")
-        self.ROI_height.set("")
-        self.ROI_width.set("")
+        self.ROI_height.set(3)
+        self.ROI_width.set(3)
         self.start_frame = None
         self.end_frame = None
+
+
         
         # Clear markers and indicators if they exist
         if hasattr(self, 'canvas') and self.canvas is not None:
@@ -184,10 +186,12 @@ class imagereaderapp:
             self.folder_name = os.path.basename(binary_path)
             #self.path =  'image' + '\\' + self.folder_name
             self.path = os.path.join("image",self.folder_name)
+
         elif not binary_path:
             print("No folder selected")
         elif not os.path.exists(binary_path):
             print("The path does not exist")
+
         return
     
     def convert_bin(self):
@@ -247,17 +251,26 @@ class imagereaderapp:
             print("No folder selected")
             self.status_label1.config(text="No folder selected")
         
+        path_temp = os.path.join(self.path, 'Temperature_ROI.npy')
+        self.progress2['maximum'] = self.total_frames
+        self.Temp_list = np.load(path_temp)
+
+        self.max_temp = np.max(self.Temp_list[:,:,0])
+        self.min_temp = np.min(self.Temp_list[:,:,0])
+
+        self.max_temp_value.set(self.max_temp)
+        self.min_temp_value.set(self.min_temp)    
+
+
         return
 
     #opencv is faster than matplotlib to save the image
     def Generate_Preview(self):
         path_temp = os.path.join(self.path, 'Temperature_ROI.npy')
         if os.path.exists(path_temp):
-            self.progress2['maximum'] = self.total_frames
-            self.Temp_list = np.load(path_temp)
 
-            max_temp = np.max(self.Temp_list[:,:,0])
-            min_temp = np.min(self.Temp_list[:,:,0])
+            max_temp = self.max_temp
+            min_temp = self.min_temp
 
             print('No input, use default max tempearture:', max_temp)
             print('No input, use default min temperature', min_temp)
@@ -331,9 +344,9 @@ class imagereaderapp:
                 self.ROI_size_text_y = ttk.Entry(self.root, textvariable=self.ROI_height, width=3)
                 
                 self.max_temp_digit = tk.Label(self.root, text="Max Temp:")
-                self.max_temp = ttk.Entry(self.root, textvariable=self.max_temp_value,width=3)
+                self.max_temp_entry = ttk.Entry(self.root, textvariable=self.max_temp_value,width=3)
                 self.min_temp_digit = tk.Label(self.root, text="Min Temp:")
-                self.min_temp = ttk.Entry(self.root, textvariable=self.min_temp_value,width=3)
+                self.min_temp_entry = ttk.Entry(self.root, textvariable=self.min_temp_value,width=3)
                 self.regen = tk.Button(self.root, text="Regen", command=self.Generate_Preview)
 
                 self.ROI_size_select = tk.Button(self.root, text="Select Size", command=self.select_size)
@@ -359,9 +372,9 @@ class imagereaderapp:
                 self.reset_button.grid(row=10, column=7, sticky="w")
                 
                 self.max_temp_digit.grid(row=3, column=5,rowspan=1)
-                self.max_temp.grid(row=4, column=5, rowspan=1)
+                self.max_temp_entry.grid(row=4, column=5, rowspan=1)
                 self.min_temp_digit.grid(row=3, column=6, rowspan=1)
-                self.min_temp.grid(row=4, column=6, rowspan=1)
+                self.min_temp_entry.grid(row=4, column=6, rowspan=1)
                 self.regen.grid(row=4, column=7, sticky="w")
 
                 self.ROI_dialog_x.grid(row=7, column=5, rowspan=1)
@@ -527,17 +540,18 @@ class imagereaderapp:
         # Clear entry fields
         self.ROI_coords_x.set("")
         self.ROI_coords_y.set("")
-        self.ROI_width.set("")
-        self.ROI_height.set("")
-        self.max_temp_value.set(0.0)
-        self.min_temp_value.set(0.0)
+        self.ROI_width.set(3)
+        self.ROI_height.set(3)
+        if hasattr(self, 'max_temp') and hasattr(self, 'min_temp'):
+            self.max_temp_value.set(self.max_temp)  # Use the original values
+            self.min_temp_value.set(self.min_temp)  # Use the original values
         #self.x_select = None
         #self.y_select = None
         # Remove marker
         self.x_select = None
         self.y_select = None
         self.start_frame = None
-        self.end_frame = None
+        self.end_frame = None           
         if self.current_marker:
             self.canvas.delete(self.current_marker)
             self.canvas.delete(self.current_line1)
