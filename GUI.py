@@ -74,7 +74,8 @@ class imagereaderapp:
         # Define the size of ROI
         self.ROI_height = tk.StringVar()
         self.ROI_width = tk.StringVar()
-
+        self.max_temp_value = tk.DoubleVar()
+        self.min_temp_value = tk.DoubleVar()
         # Setup the Notebook
         self.notebook = ttk.Notebook(root)
         self.notebook.grid(row=0, column=0, sticky="nsew")  # Make the notebook expand in all directions
@@ -125,10 +126,12 @@ class imagereaderapp:
         self.ROI = None
         self.ROI_coords_x.set("")
         self.ROI_coords_y.set("")
-        self.ROI_height.set("")
-        self.ROI_width.set("")
+        self.ROI_height.set(3)
+        self.ROI_width.set(3)
         self.start_frame = None
         self.end_frame = None
+
+
         
         # Clear markers and indicators if they exist
         if hasattr(self, 'canvas') and self.canvas is not None:
@@ -181,11 +184,14 @@ class imagereaderapp:
             self.allfield_temp = np.zeros((self.height, self.width, self.total_frames))
         
             self.folder_name = os.path.basename(binary_path)
-            self.path =  'image' + '\\' + self.folder_name
+            #self.path =  'image' + '\\' + self.folder_name
+            self.path = os.path.join("image",self.folder_name)
+
         elif not binary_path:
             print("No folder selected")
         elif not os.path.exists(binary_path):
             print("The path does not exist")
+
         return
     
     def convert_bin(self):
@@ -221,18 +227,19 @@ class imagereaderapp:
                 max_temp = np.max(self.allfield_temp)
                 min_temp = np.min(self.allfield_temp)
                 print(f"Temperature range: {min_temp} to {max_temp}")
-                
+                preview_path = os.path.join(self.path, 'Preview')
                 # Create the output directory if it doesn't exist
-                if not os.path.exists(self.path+'\\'+'Preview'):
-                    os.makedirs(self.path+'\\'+'Preview')
-                elif os.path.exists(self.path+'\\'+'Preview'):
+                if not os.path.exists(preview_path):
+                    os.makedirs(preview_path)
+                elif os.path.exists(preview_path):
                     #remove all the files in the folder
-                    files = glob.glob(self.path +'\\'+'Preview' + '\\*')
+                    files = glob.glob(preview_path)
                     for f in files:
                         os.remove(f)
 
-                # Save the data (corrected the variable name)
-                np.save(self.path +'\\'+'Temperature_ROI', self.allfield_temp)
+                # Save the data (corrected the variable name)]
+                save_path = os.path.join(self.path, 'Temperature_ROI')
+                np.save(save_path, self.allfield_temp)
                 self.status_label1.config(text=f"Conversion complete. Frames: {self.total_frames}")
                 
             except MemoryError:
@@ -244,21 +251,36 @@ class imagereaderapp:
             print("No folder selected")
             self.status_label1.config(text="No folder selected")
         
+        path_temp = os.path.join(self.path, 'Temperature_ROI.npy')
+        self.progress2['maximum'] = self.total_frames
+        self.Temp_list = np.load(path_temp)
+
+        self.max_temp = np.max(self.Temp_list[:,:,0])
+        self.min_temp = np.min(self.Temp_list[:,:,0])
+
+        self.max_temp_value.set(self.max_temp)
+        self.min_temp_value.set(self.min_temp)    
+
+
         return
 
     #opencv is faster than matplotlib to save the image
     def Generate_Preview(self):
-        if os.path.exists(self.path +'\\'+'Temperature_ROI.npy'):
-            print('The temperature data detected! Begin to generate the preview.')
+        path_temp = os.path.join(self.path, 'Temperature_ROI.npy')
+        if os.path.exists(path_temp):
 
-            self.progress2['maximum'] = self.total_frames
-            self.Temp_list = np.load(self.path + '\\'+'Temperature_ROI.npy')
-            max_temp = np.max(self.Temp_list[:,:,0])
-            min_temp = np.min(self.Temp_list[:,:,0])
-            print('The maximum temperature is:', max_temp)
-            print('The minimum temperature is:', min_temp)
+            max_temp = self.max_temp
+            min_temp = self.min_temp
 
-            path  = self.path + '\\' + 'Preview'
+            print('No input, use default max tempearture:', max_temp)
+            print('No input, use default min temperature', min_temp)
+            if self.max_temp_value.get() != 0 and self.min_temp_value.get() != 0:
+                max_temp = self.max_temp_value.get()
+                min_temp = self.min_temp_value.get()
+                print('Use input max temperature:', max_temp)
+                print('Use input min temperature:', min_temp)
+            
+            path  = os.path.join(self.path, 'Preview') 
 
             for i in range(self.total_frames):
                 self.progress2['value'] = i
@@ -272,7 +294,7 @@ class imagereaderapp:
                 # Apply colormap (JET)
                 color_frame = cv2.applyColorMap(norm_frame, cv2.COLORMAP_JET)
 
-                name = f'{path}\\{i}.png'
+                name = os.path.join(path, f"{i}.png")
                 cv2.imwrite(name, color_frame)
 
             
@@ -287,12 +309,15 @@ class imagereaderapp:
             if isinstance(widget, tk.Canvas) or isinstance(widget, tk.Scale) or isinstance(widget, tk.Button) or isinstance(widget, tk.Label) or isinstance(widget, ttk.Entry):
                 widget.destroy()
 
-        self.img_dir = self.path + '\\Preview'+'\\'
-        
+        #self.img_dir = self.path + '\\Preview'+'\\'
+        self.img_dir = os.path.join(self.path, 'Preview')
+    
         # Check if temperature data and preview images exist
-        if os.path.exists(self.path + '\\'+'Temperature_ROI.npy') and os.listdir(self.img_dir):
+        test_path = os.path.join(self.path, 'Temperature_ROI.npy')
+        if os.path.exists(test_path) and os.listdir(self.img_dir):
             try:
-                self.Temp_list = np.load(self.path + '\\'+'Temperature_ROI.npy')
+                #self.Temp_list = np.load(self.path + '\\'+'Temperature_ROI.npy')
+                self.Temp_list = np.load(test_path)
                 self.image_files = sorted(glob.glob(os.path.join(self.img_dir,'*.png')), key=os.path.getmtime)
                 
                 # Create a new canvas with a fixed reference to prevent garbage collection
@@ -318,6 +343,12 @@ class imagereaderapp:
                 self.ROI_size_dialog_y = tk.Label(self.root, text="Height:")
                 self.ROI_size_text_y = ttk.Entry(self.root, textvariable=self.ROI_height, width=3)
                 
+                self.max_temp_digit = tk.Label(self.root, text="Max Temp:")
+                self.max_temp_entry = ttk.Entry(self.root, textvariable=self.max_temp_value,width=3)
+                self.min_temp_digit = tk.Label(self.root, text="Min Temp:")
+                self.min_temp_entry = ttk.Entry(self.root, textvariable=self.min_temp_value,width=3)
+                self.regen = tk.Button(self.root, text="Regen", command=self.Generate_Preview)
+
                 self.ROI_size_select = tk.Button(self.root, text="Select Size", command=self.select_size)
                 
                 self.start_frame = tk.Button(self.root, text="Select as Start", command=self.mark_start)
@@ -340,6 +371,12 @@ class imagereaderapp:
                 self.ROI_button.grid(row=8, column=7, sticky="w")
                 self.reset_button.grid(row=10, column=7, sticky="w")
                 
+                self.max_temp_digit.grid(row=3, column=5,rowspan=1)
+                self.max_temp_entry.grid(row=4, column=5, rowspan=1)
+                self.min_temp_digit.grid(row=3, column=6, rowspan=1)
+                self.min_temp_entry.grid(row=4, column=6, rowspan=1)
+                self.regen.grid(row=4, column=7, sticky="w")
+
                 self.ROI_dialog_x.grid(row=7, column=5, rowspan=1)
                 self.ROI_text_x.grid(row=8, column=5, rowspan=1)
                 
@@ -389,7 +426,8 @@ class imagereaderapp:
         
         # Update vertical temperature image if enabled
         if hasattr(self, 'show_ver_enabled') and self.show_ver_enabled and hasattr(self, 'canvas_ver') and self.canvas_ver is not None:
-            self.ver_path = self.path + '\\' + "Vertical_temp"
+            #self.ver_path = self.path + '\\' + "Vertical_temp"
+            self.ver_path = os.path.join(self.path, 'Vertical_temp')
             ver_image_path = os.path.join(self.ver_path, f"{index}.jpg")
             
             # Check if the specific vertical image exists
@@ -411,7 +449,8 @@ class imagereaderapp:
             pass
         #check if the horizontal temperature image is exist
         if hasattr(self, 'show_hor_enabled') and self.show_hor_enabled and hasattr(self, 'canvas_hor') and self.canvas_hor is not None:
-            self.hor_path = self.path + '\\' +"Horizontal_temp"
+            #self.hor_path = self.path + '\\' +"Horizontal_temp"
+            self.hor_path = os.path.join(self.path, 'Horizontal_temp')
             hor_image_path = os.path.join(self.hor_path, f"{index}.jpg")
             
             # Check if the specific horizontal image exists
@@ -430,8 +469,12 @@ class imagereaderapp:
                                         font=("Arial", 12))
         else:
             pass
-            
+    
+    def regenerate_preview(self):
 
+
+        return
+    
     def on_canvas_click(self, event):
         #set the trackpoint
         if self.trackpoint_id is not None:
@@ -497,15 +540,18 @@ class imagereaderapp:
         # Clear entry fields
         self.ROI_coords_x.set("")
         self.ROI_coords_y.set("")
-        self.ROI_width.set("")
-        self.ROI_height.set("")
+        self.ROI_width.set(3)
+        self.ROI_height.set(3)
+        if hasattr(self, 'max_temp') and hasattr(self, 'min_temp'):
+            self.max_temp_value.set(self.max_temp)  # Use the original values
+            self.min_temp_value.set(self.min_temp)  # Use the original values
         #self.x_select = None
         #self.y_select = None
         # Remove marker
         self.x_select = None
         self.y_select = None
         self.start_frame = None
-        self.end_frame = None
+        self.end_frame = None           
         if self.current_marker:
             self.canvas.delete(self.current_marker)
             self.canvas.delete(self.current_line1)
@@ -551,26 +597,25 @@ class imagereaderapp:
                     avg_temp = np.mean(ROI, axis=(0,1))
                     print(f"Average temperature: {avg_temp}")
 
+                    save_path = os.path.join(self.path, 'Temperature_data.txt')
                     #save the temperature data as txt file
-                    np.savetxt(self.path +'\\'+'Temperature_data.txt', avg_temp)
+                    np.savetxt(save_path , avg_temp)
 
-                    #plot the temperature data and save as png file
+                    #if the folder is not exist, create a new folder
+                    path = os.path.join(self.path,'Temperature_ROI.png')
                     plt.figure()
                     plt.plot(avg_temp)
                     plt.title('Average Temperature')
                     plt.xlabel('Frame Number')
                     plt.ylabel('Temperature (C)')
-                    #if the folder is not exist, create a new folder
-                    if not os.path.exists('ROI'):
-                        os.makedirs('ROI')
-                    plt.savefig(self.path +'\\'+'Temperature_ROI.png')
+                    #plt.savefig(self.path +'\\'+'Temperature_ROI.png')
+                    plt.savefig(path, bbox_inches='tight')
                     plt.close()
 
                     #pump up a new window to show the temperature fig
                     # Create a new window
                     temp_window = tk.Toplevel(self.root)
                     temp_window.title("Temperature Plot")
-                    temp_window.geometry("600x400")
                     # Create a figure and axis
                     fig, ax = plt.subplots(figsize=(6, 4))
                     ax.plot(avg_temp)
@@ -608,18 +653,19 @@ class imagereaderapp:
                     min_temp = np.min(temp_vertical_avg)
                     #save the temperature data of every frame as png image, x axis is the vertical coordinate, y axis is the temperature
                     #check if the folder is not exist
-                    if not os.path.exists(self.path + '\\' +'Vertical_temp'):
-                        os.makedirs(self.path + '\\' +'Vertical_temp')
+                    check_path = os.path.join(self.path, 'Vertical_temp')
+                    if not os.path.exists(check_path):
+                        os.makedirs(check_path )
                     #check if the folder is exist, clear the folder and save new image in the folder
-                    elif os.path.exists(self.path + '\\' +'Vertical_temp'):
+                    elif os.path.exists(check_path):
                         #remove all the files in the folder
-                        files = glob.glob(self.path + '\\' +'Vertical_temp\\*')
+                        files = glob.glob(check_path + '\\*')
                         for f in files:
                             os.remove(f)
 
                     # Create a single figure and axis
                     fig, ax = plt.subplots(figsize=(8,6),dpi=100)
-                    path = self.path + '\\' +'Vertical_temp'
+                    #path = self.path + '\\' +'Vertical_temp'
                     ax.set_xlabel('Vertical Coordinate')
                     ax.set_ylabel('Temperature (C)')
                     ax.set_ylim(min_temp, max_temp)
@@ -629,7 +675,8 @@ class imagereaderapp:
                         ax.clear()
                         ax.scatter(Y_axis,temp_vertical_avg[:,i])
                         ax.set_title(f'frame number: {i}')
-                        fig.savefig(f'{path}\\{i}.jpg',
+                        #fig.savefig(f'{path}\\{i}.jpg',bbox_inches = None)
+                        fig.savefig(os.path.join(check_path, f"{i}.jpg"),
                                     bbox_inches = None)
 
                         self.status_label2.config(text = f"{i+1}/ {self.end_frame}")
@@ -637,8 +684,9 @@ class imagereaderapp:
                     plt.close(fig)  # Close only once at the end
 
                     #save the all temperature data as npy file
-                    np.save(self.path + '\\' +'Vertical_temp.npy', temp_vertical_avg)
-
+                    #np.save(self.path + '\\' +'Vertical_temp.npy', temp_vertical_avg)
+                    np.save(os.path.join(check_path, 'Vertical_temp.npy'), temp_vertical_avg)
+                    #pump up a new window to show the temperature fig
                 #TODO
                 else:
                     tk.messagebox.showerror("Invalid Input","Please enter the width and height of the ROI")
@@ -665,35 +713,38 @@ class imagereaderapp:
                     min_temp = np.min(temp_horizontal_avg)
                     #save the temperature data of every frame as png image, x axis is the vertical coordinate, y axis is the temperature
                     #check if the folder is not exist
-                    if not os.path.exists(self.path + '\\' + 'Horizontal_temp'):
-                        os.makedirs(self.path + '\\' + 'Horizontal_temp')
+                    check_path = os.path.join(self.path, 'Horizontal_temp')
+                    if not os.path.exists(check_path):
+                        os.makedirs(check_path)
                     #check if the folder is exist, clear the folder and save new image in the folder
-                    elif os.path.exists(self.path + '\\' +'Horizontal_temp'):
+                    elif os.path.exists(check_path):
                         #remove all the files in the folder
-                        files = glob.glob(self.path + '\\' +'Horizontal_temp\\*')
+                        files = glob.glob(check_path + '\\*')
                         for f in files:
                             os.remove(f)
                     # Create a single figure and axis
                     fig, ax = plt.subplots(figsize=(8,6),dpi=100)
                     ax.set_xlabel('Horizontal Coordinate')
                     ax.set_ylabel('Temperature (C)')
-                    path = self.path + '\\' +'Horizontal_temp'
+                    #path = self.path + '\\' +'Horizontal_temp'
                     for i in tqdm(range(self.start_frame, self.end_frame)):
                         ax.clear()
                         ax.scatter(X_axis,temp_horizontal_avg[:,i])
                         ax.set_title(f'frame number: {i}')
                         ax.set_ylim(min_temp, max_temp)
                 
-                        fig.savefig(f'{path}\\{i}.jpg',
-                                    bbox_inches = None)
-                        
+                        #fig.savefig(f'{path}\\{i}.jpg',bbox_inches = None)
+                        fig.savefig(os.path.join(check_path, f"{i}.jpg"))
+
                         self.status_label3.config(text = f"{i+1}/ {self.end_frame}")
                         self.root.update()
 
                     plt.close(fig)
 
                     #save the all temperature data as npy file
-                    np.save(self.path + '\\' +'Horizontal_temp.npy', temp_horizontal_avg)
+                    #np.save(self.path + '\\' +'Horizontal_temp.npy', temp_horizontal_avg)
+                    np.save(os.path.join(check_path, 'Horizontal_temp.npy'), temp_horizontal_avg)
+
                 else:
                     tk.messagebox.showerror("Invalid Input","Please enter the width and height of the ROI")
             else:
@@ -703,10 +754,11 @@ class imagereaderapp:
 
     #def read_temp_hor(self):
 
-    #Customable ROI area, 
+    #Customable ROI area
 
     def show_ver_temp(self):
-        self.ver_path = self.path+ '\\'+"Vertical_temp"
+        #self.ver_path = self.path+ '\\'+"Vertical_temp"
+        self.ver_path = os.path.join(self.path, 'Vertical_temp')
         if os.path.exists(self.ver_path):
             # Check if the folder is not empty
             if os.listdir(self.ver_path):
@@ -736,7 +788,8 @@ class imagereaderapp:
             tk.messagebox.showerror("Error","Vertical temperature folder does not exist")
 
     def show_hor_temp(self):
-        self.hor_path = self.path+ '\\'+"Horizontal_temp"
+        #self.hor_path = self.path+ '\\'+"Horizontal_temp"
+        self.hor_path = os.path.join(self.path, 'Horizontal_temp')
         if os.path.exists(self.hor_path):
             # Check if the folder is not empty
             if os.listdir(self.hor_path):
