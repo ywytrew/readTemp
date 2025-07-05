@@ -745,6 +745,9 @@ class imagereaderapp:
                     #np.save(self.path + '\\' +'Horizontal_temp.npy', temp_horizontal_avg)
                     np.save(os.path.join(check_path, 'Horizontal_temp.npy'), temp_horizontal_avg)
 
+                    #save the temperature data as csv file
+                    
+
                 else:
                     tk.messagebox.showerror("Invalid Input","Please enter the width and height of the ROI")
             else:
@@ -796,17 +799,44 @@ class imagereaderapp:
                 # Set flag to True
                 self.show_hor_enabled = True
                 #pump up a new window to show the temperature fig
-                hor_temp_window = tk.Toplevel(self.root)
-                hor_temp_window.title("Horizontal Temperature")
-                hor_temp_window.geometry("800x640")
+                self.hor_temp_window = tk.Toplevel(self.root)
+                self.hor_temp_window.title("Horizontal Temperature")
+                self.hor_temp_window.geometry("800x700")  # Increased height for the button
+                
                 #read the figure from the folder
                 hor_image_path = os.path.join(self.hor_path, f"{self.slider.get()}.jpg")
+                
                 # Create a new canvas to display the figure
-                self.canvas_hor = tk.Canvas(hor_temp_window, width=600, height=400)
+                self.canvas_hor = tk.Canvas(self.hor_temp_window, width=600, height=400)
                 self.canvas_hor.pack(fill=tk.BOTH, expand=True)
+                
+                # Add a frame for buttons at the bottom
+                button_frame = tk.Frame(self.hor_temp_window)
+                button_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
+                
+                # Add save button for current frame
+                save_current_button = tk.Button(
+                    button_frame, 
+                    text="Save Current Frame Temperature", 
+                    command=self.save_current_hor_temp,
+                    bg="lightblue",
+                    font=("Arial", 10, "bold")
+                )
+                save_current_button.pack(side=tk.LEFT, padx=5)
+                
+                # Add status label to show save confirmation
+                self.hor_save_status = tk.Label(
+                    button_frame, 
+                    text="", 
+                    fg="green",
+                    font=("Arial", 9)
+                )
+                self.hor_save_status.pack(side=tk.LEFT, padx=10)
+                
                 # Create a new image object
                 image_hor = Image.open(hor_image_path)
                 self.current_frame_hor = ImageTk.PhotoImage(image_hor)
+                
                 # Display the image on the canvas
                 self.canvas_hor.create_image(0, 0, anchor='nw', image=self.current_frame_hor)
                 current_value = self.slider.get()
@@ -817,6 +847,216 @@ class imagereaderapp:
                 tk.messagebox.showerror("Error", "Horizontal temperature folder is empty")
         else:
             tk.messagebox.showerror("Error", "Horizontal temperature folder does not exist")
+
+    def save_current_hor_temp(self):
+        """Save the horizontal temperature data for the current frame"""
+        try:
+            current_frame_index = self.slider.get()
+            
+            # Check if horizontal temperature data exists
+            hor_temp_data_path = os.path.join(self.hor_path, 'Horizontal_temp.npy')
+            
+            if os.path.exists(hor_temp_data_path):
+                # Load the horizontal temperature data
+                temp_horizontal_data = np.load(hor_temp_data_path)
+                
+                # Extract data for current frame (adjust index based on start_frame)
+                frame_relative_index = current_frame_index - self.start_frame
+                
+                if 0 <= frame_relative_index < temp_horizontal_data.shape[1]:
+                    current_frame_temp = temp_horizontal_data[:, frame_relative_index]
+                    
+                    # Create X axis coordinates
+                    X_axis = np.arange(0, self.width, 1)
+                    
+                    # Prepare data for saving (X coordinate, Temperature)
+                    save_data = np.column_stack((X_axis, current_frame_temp))
+                    
+                    # Create filename with frame number
+                    filename = f"horizontal_temp_frame_{current_frame_index}.csv"
+                    if not os.path.exists(path):
+                        os.makedirs(path)
+                    path = os.path.join(self.hor_path, 'Horizontal_temp_data')
+                    save_path = os.path.join(path, filename)
+                    
+                    # Save as CSV with headers
+                    np.savetxt(save_path, save_data, 
+                            delimiter=',', 
+                            header='X_Coordinate,Temperature_C',
+                            comments='',
+                            fmt='%d,%.6f')
+                    
+                    
+                    # Update status label
+                    self.hor_save_status.config(
+                        text=f"Saved frame {current_frame_index} data successfully!",
+                        fg="green"
+                    )
+                    
+                    # Print confirmation
+                    print(f"Horizontal temperature data for frame {current_frame_index} saved to:")
+                    print(f"  CSV: {save_path}")
+                    print(f"  Data shape: {save_data.shape}")
+                    print(f"  Temperature range: {np.min(current_frame_temp):.2f}°C to {np.max(current_frame_temp):.2f}°C")
+                    
+                else:
+                    error_msg = f"Frame {current_frame_index} is outside the processed range ({self.start_frame}-{self.end_frame-1})"
+                    self.hor_save_status.config(text=error_msg, fg="red")
+                    tk.messagebox.showerror("Error", error_msg)
+                    
+            else:
+                error_msg = "No horizontal temperature data found. Process horizontal temperature first."
+                self.hor_save_status.config(text=error_msg, fg="red")
+                tk.messagebox.showerror("Error", error_msg)
+                
+        except Exception as e:
+            error_msg = f"Error saving data: {str(e)}"
+            self.hor_save_status.config(text=error_msg, fg="red")
+            tk.messagebox.showerror("Error", error_msg)
+            print(f"Error in save_current_hor_temp: {e}")
+
+    def save_current_hor_temp(self):
+        """Save the horizontal temperature data for the current frame"""
+        try:
+            current_frame_index = self.slider.get()
+            
+            # Check if horizontal temperature data exists
+            hor_temp_data_path = os.path.join(self.hor_path, 'Horizontal_temp.npy')
+            
+            if os.path.exists(hor_temp_data_path):
+                # Load the horizontal temperature data
+                temp_horizontal_data = np.load(hor_temp_data_path)
+                
+                # Extract data for current frame (adjust index based on start_frame)
+                frame_relative_index = current_frame_index - self.start_frame
+                
+                if 0 <= frame_relative_index < temp_horizontal_data.shape[1]:
+                    current_frame_temp = temp_horizontal_data[:, frame_relative_index]
+                    
+                    # Create X axis coordinates
+                    X_axis = np.arange(0, self.width, 1)
+                    
+                    # Prepare data for saving (X coordinate, Temperature)
+                    save_data = np.column_stack((X_axis, current_frame_temp))
+                    
+                    # Create filename with frame number
+                    filename = f"horizontal_temp_frame_{current_frame_index}.csv"
+                    save_path = os.path.join(self.path, filename)
+                    
+                    # Save as CSV with headers
+                    np.savetxt(save_path, save_data, 
+                            delimiter=',', 
+                            header='X_Coordinate,Temperature_C',
+                            comments='',
+                            fmt='%d,%.6f')
+                
+                    
+                    # Update status label
+                    self.hor_save_status.config(
+                        text=f"Saved frame {current_frame_index} data successfully!",
+                        fg="green"
+                    )
+                    
+                    # Print confirmation
+                    print(f"Horizontal temperature data for frame {current_frame_index} saved to:")
+                    print(f"  CSV: {save_path}")
+                    print(f"  Data shape: {save_data.shape}")
+                    print(f"  Temperature range: {np.min(current_frame_temp):.2f}°C to {np.max(current_frame_temp):.2f}°C")
+                    
+                else:
+                    error_msg = f"Frame {current_frame_index} is outside the processed range ({self.start_frame}-{self.end_frame-1})"
+                    self.hor_save_status.config(text=error_msg, fg="red")
+                    tk.messagebox.showerror("Error", error_msg)
+                    
+            else:
+                error_msg = "No horizontal temperature data found. Process horizontal temperature first."
+                self.hor_save_status.config(text=error_msg, fg="red")
+                tk.messagebox.showerror("Error", error_msg)
+                
+        except Exception as e:
+            error_msg = f"Error saving data: {str(e)}"
+            self.hor_save_status.config(text=error_msg, fg="red")
+            tk.messagebox.showerror("Error", error_msg)
+            print(f"Error in save_current_hor_temp: {e}")
+
+    # Optional: Add similar function for vertical temperature
+    def save_current_ver_temp(self):
+        """Save the vertical temperature data for the current frame"""
+        try:
+            current_frame_index = self.slider.get()
+            
+            # Check if vertical temperature data exists
+            ver_temp_data_path = os.path.join(self.ver_path, 'Vertical_temp.npy')
+            
+            if os.path.exists(ver_temp_data_path):
+                # Load the vertical temperature data
+                temp_vertical_data = np.load(ver_temp_data_path)
+                
+                # Extract data for current frame (adjust index based on start_frame)
+                frame_relative_index = current_frame_index - self.start_frame
+                
+                if 0 <= frame_relative_index < temp_vertical_data.shape[1]:
+                    current_frame_temp = temp_vertical_data[:, frame_relative_index]
+                    
+                    # Create Y axis coordinates
+                    Y_axis = np.arange(0, self.height, 1)
+                    
+                    # Prepare data for saving (Y coordinate, Temperature)
+                    save_data = np.column_stack((Y_axis, current_frame_temp))
+                    
+                    # Create filename with frame number
+                    filename = f"vertical_temp_frame_{current_frame_index}.csv"
+                    save_path = os.path.join(self.path, filename)
+                    
+                    # Save as CSV with headers
+                    np.savetxt(save_path, save_data, 
+                            delimiter=',', 
+                            header='Y_Coordinate,Temperature_C',
+                            comments='',
+                            fmt='%d,%.6f')
+                    
+                    # Also save as .txt for compatibility
+                    txt_filename = f"vertical_temp_frame_{current_frame_index}.txt"
+                    txt_save_path = os.path.join(self.path, txt_filename)
+                    np.savetxt(txt_save_path, save_data, 
+                            delimiter='\t',
+                            header='Y_Coordinate\tTemperature_C',
+                            comments='',
+                            fmt='%d\t%.6f')
+                    
+                    # Update status label (if vertical window has one)
+                    if hasattr(self, 'ver_save_status'):
+                        self.ver_save_status.config(
+                            text=f"Saved frame {current_frame_index} data successfully!",
+                            fg="green"
+                        )
+                    
+                    # Print confirmation
+                    print(f"Vertical temperature data for frame {current_frame_index} saved to:")
+                    print(f"  CSV: {save_path}")
+                    print(f"  TXT: {txt_save_path}")
+                    print(f"  Data shape: {save_data.shape}")
+                    print(f"  Temperature range: {np.min(current_frame_temp):.2f}°C to {np.max(current_frame_temp):.2f}°C")
+                    
+                else:
+                    error_msg = f"Frame {current_frame_index} is outside the processed range ({self.start_frame}-{self.end_frame-1})"
+                    if hasattr(self, 'ver_save_status'):
+                        self.ver_save_status.config(text=error_msg, fg="red")
+                    tk.messagebox.showerror("Error", error_msg)
+                    
+            else:
+                error_msg = "No vertical temperature data found. Process vertical temperature first."
+                if hasattr(self, 'ver_save_status'):
+                    self.ver_save_status.config(text=error_msg, fg="red")
+                tk.messagebox.showerror("Error", error_msg)
+                
+        except Exception as e:
+            error_msg = f"Error saving data: {str(e)}"
+            if hasattr(self, 'ver_save_status'):
+                self.ver_save_status.config(text=error_msg, fg="red")
+            tk.messagebox.showerror("Error", error_msg)
+            print(f"Error in save_current_ver_temp: {e}")
+
 
 def main():
     # 图像文件列表
